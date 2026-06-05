@@ -662,9 +662,8 @@ export default class GoveeDevice
 
    send(command, port)
 {
-    const targetPort = port ? port : this.port;
-    this.log('UDP SEND to ' + this.ip + ':' + targetPort + ' ' + JSON.stringify(command));
-    this.udpServer.write(command, this.ip, targetPort);
+    this.log('sendRGB CALLED type=' + this.type + ' id=' + this.id + ' onOff=' + this.onOff + ' enabled=' + this.enabled + ' firstColor=' + JSON.stringify(colors ? colors[0] : null));
+
 }
 
     turnOffRazer()
