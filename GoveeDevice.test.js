@@ -665,7 +665,7 @@ export default class GoveeDevice
     const targetPort = port ? port : this.port;
     this.log('UDP SEND to ' + this.ip + ':' + targetPort + ' ' + JSON.stringify(command));
     this.udpServer.write(command, this.ip, targetPort);
-}t
+}
 
     turnOffRazer()
     {
