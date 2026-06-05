@@ -3,9 +3,8 @@ import goveeProducts from "./govee-products.test.js";
 import GoveeDevice from "./GoveeDevice.test.js";
 import GoveeController from "./GoveeController.test.js";
 import GoveeDeviceUI from "./GoveeDeviceUI.test.js";
-
-export function Name() { return "Govee Direct Connect"; }
-export function Version() { return "2.1.4"; }
+export function Name() { return "Govee Direct Connect H60A1"; }
+export function Version() { return "2.1.4-h60a1"; }
 export function Type() { return "network"; }
 export function Publisher() { return "RickOfficial"; }
 export function Size() { return [1, 1]; }

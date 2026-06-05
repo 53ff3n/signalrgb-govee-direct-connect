@@ -523,86 +523,113 @@ export default class GoveeDevice
     }
 
     sendRGB(colors, now, frameDelay)
+{
+    this.log('sendRGB CALLED type=' + this.type + ' id=' + this.id + ' onOff=' + this.onOff + ' enabled=' + this.enabled + ' firstColor=' + JSON.stringify(colors ? colors[0] : null));
+
+    if (this.shuttingDown) return;
+    if (!this.enabled) return;
+
+    /*
+        H60A1 / Single-Color-Fallback:
+
+        Die H60A1 kann per LAN API colorwc empfangen.
+        Forced Color funktioniert bereits, weil es direkt colorwc sendet.
+        Canvas hängt im Original-Code vorher an Device-ID/Status/onOff.
+
+        Deshalb wird bei Protocol = Single color direkt die Canvas-Farbe
+        als colorwc gesendet.
+    */
+    if (parseInt(this.type) === PROTOCOL_SINGLE_COLOR)
     {
-        if (this.shuttingDown) return;
-
-        if (this.enabled)
+        try
         {
-            if (this.split == 2)
-            {
-                colors = colors.concat(colors);
-            }
+            let colorCommand = this.getColorCommand(colors);
+            let jsonColor = JSON.stringify(colorCommand);
 
-            // Every 60 minutes check if the device data has updated (like firmware changes)
-            if (now - this.lastDeviceDataCheck > 60 * 60 * 1000)
+            if (jsonColor !== this.lastSingleColor)
             {
-                this.requestDeviceData(now);
-                // Not sending more commands to not overload
-                return;
+                this.lastSingleColor = jsonColor;
+                this.log('H60A1 Canvas fallback sending ' + jsonColor);
+                this.send(colorCommand);
             }
-    
-            // Every 20 seconds check if we need to get the device data, cause ID = null
-            if (now - this.lastRender > 20 * 1000)
-            {
-                // Check if we have the device data already
-                if (this.id == null)
-                {
-                    
-                    // There's no unique ID, so we need to get that data
-                    this.requestDeviceData(now);
-                    this.lastRender = now;
-                    // Not sending more commands to not overload
-                    return
-                }
-            }
+        } catch(ex)
+        {
+            device.error(ex.message);
+            device.error(colors);
+        }
 
-            // If status update is forced do it
-            if (this.forceStatusUpdate)
-            {
-                this.forceStatusUpdate = false;
-                this.getStatus(now);
-            } else if (this.id !== null && (now - this.lastStatus) > 10 * 1000)
-            {
-                this.getStatus(now);
-            }
+        frameDelay = parseInt(frameDelay);
+        if (frameDelay > 0)
+        {
+            device.pause(frameDelay);
+        }
 
-            if (!this.onOff && !this.waitingForStatusUpdate)
-            {
-                this.turnOn();
-                this.forceStatusUpdate = true;
-            }
+        return;
+    }
 
-            if (this.type !== PROTOCOL_SINGLE_COLOR)
-            {
-                if (!this.razerOn && !this.waitingForStatusUpdate)
-                {
-                    this.send(this.getRazerModeCommand(true));
-                    this.forceStatusUpdate = true;
-                }
-            }
+    if (parseInt(this.split) == 2)
+    {
+        colors = colors.concat(colors);
+    }
 
-            // If the device is on or we don't have any data yet (we just assume its on)
-            if (this.onOff)
-            {
-                try
-                {
-                    // Send RGB command first, then do calculations and stuff later
-                    let colorCommand = this.getColorCommand(colors);
-                    this.send(colorCommand);
-                } catch(ex)
-                {
-                    device.error(ex.message);
-                    device.error(colors);
-                }
+    // Every 60 minutes check if the device data has updated (like firmware changes)
+    if (now - this.lastDeviceDataCheck > 60 * 60 * 1000)
+    {
+        this.requestDeviceData(now);
+        return;
+    }
 
-                frameDelay = parseInt(frameDelay);
-                if (frameDelay > 0)
-                {
-                    device.pause(frameDelay);
-                }
-            }
+    // Every 20 seconds check if we need to get the device data, cause ID = null
+    if (now - this.lastRender > 20 * 1000)
+    {
+        if (this.id == null)
+        {
+            this.requestDeviceData(now);
+            this.lastRender = now;
+            return;
         }
     }
+
+    if (this.forceStatusUpdate)
+    {
+        this.forceStatusUpdate = false;
+        this.getStatus(now);
+    } else if (this.id !== null && (now - this.lastStatus) > 10 * 1000)
+    {
+        this.getStatus(now);
+    }
+
+    if (!this.onOff && !this.waitingForStatusUpdate)
+    {
+        this.turnOn();
+        this.forceStatusUpdate = true;
+    }
+
+    if (!this.razerOn && !this.waitingForStatusUpdate)
+    {
+        this.send(this.getRazerModeCommand(true));
+        this.forceStatusUpdate = true;
+    }
+
+    if (this.onOff)
+    {
+        try
+        {
+            let colorCommand = this.getColorCommand(colors);
+            this.send(colorCommand);
+        } catch(ex)
+        {
+            device.error(ex.message);
+            device.error(colors);
+        }
+
+        frameDelay = parseInt(frameDelay);
+        if (frameDelay > 0)
+        {
+            device.pause(frameDelay);
+        }
+    }
+}
 
     singleColor(color, now, shutDown)
     {
@@ -633,10 +660,12 @@ export default class GoveeDevice
         }
     }
 
-    send(command, port)
-    {
-        this.udpServer.write(command, this.ip, port ? port : this.port);
-    }
+   send(command, port)
+{
+    const targetPort = port ? port : this.port;
+    this.log('UDP SEND to ' + this.ip + ':' + targetPort + ' ' + JSON.stringify(command));
+    this.udpServer.write(command, this.ip, targetPort);
+}t
 
     turnOffRazer()
     {
